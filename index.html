@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tech Quiz Challenge</title>
+  <style>
+    :root{
+      --bg:#0d1117;
+      --card:#161b22;
+      --muted:#8b949e;
+      --fg:#e6edf3;
+      --brand:#58a6ff;
+      --accent:#238636;
+      --accent-hover:#2ea043;
+      --chip:#21262d;
+      --chip-hover:#30363d;
+      --border:#30363d;
+      --bad:#f85149;
+      --good:#2ea043;
+    }
+    *{box-sizing:border-box}
+    body{
+      font-family: "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+      background: radial-gradient(1200px 600px at 20% -10%, rgba(88,166,255,.15), transparent 50%),
+                  radial-gradient(1000px 600px at 120% 110%, rgba(35,134,54,.18), transparent 50%),
+                  var(--bg);
+      color: var(--fg);
+      margin:0; padding:20px;
+    }
+    h1,h2,h3{ text-align:center; color:var(--brand); margin:10px 0 16px }
+    #username-form, .quiz-section, #quiz-container{
+      max-width: 900px; margin: 20px auto; background: var(--card);
+      padding: 20px; border-radius: 16px;
+      box-shadow: 0 0 18px rgba(88,166,255,.25), inset 0 0 0 1px rgba(48,54,61,.6);
+    }
+    .section-container{
+      display:flex; flex-wrap:wrap; justify-content:center; gap:16px;
+    }
+    .section{
+      flex: 1 1 240px; min-width:240px; max-width:280px;
+      padding:18px; border-radius:14px; text-align:center;
+      background: linear-gradient(180deg, #171b23, #14171d);
+      border:1px solid var(--border);
+      box-shadow: 0 6px 18px rgba(0,0,0,.35);
+      transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+    }
+    .section:hover{
+      transform: translateY(-3px);
+      box-shadow: 0 10px 28px rgba(88,166,255,.35);
+      border-color: rgba(88,166,255,.5);
+    }
+    .subject-chip{
+      display:inline-block; padding:6px 10px; border-radius:999px;
+      background: rgba(88,166,255,.12); color: var(--brand);
+      border:1px solid rgba(88,166,255,.35); font-size:12px; letter-spacing:.4px;
+      margin-bottom:8px;
+    }
+    button{
+      background: var(--accent); color:#fff; border:none; padding:10px 18px;
+      border-radius:10px; cursor:pointer; font-weight:600; transition:.25s;
+      box-shadow: 0 6px 16px rgba(35,134,54,.35);
+    }
+    button:hover{ background: var(--accent-hover) }
+    .options label{
+      display:block; margin:10px 0; padding:12px; background: var(--chip);
+      border-radius:10px; cursor:pointer; transition:.2s; border:1px solid var(--border);
+    }
+    .options label:hover{ background: var(--chip-hover) }
+    input[type="radio"], input[type="checkbox"]{ margin-right:10px; transform: scale(1.15) }
+    #timer,#score{ margin-top:10px; font-size:15px; color:var(--muted) }
+    #result{ margin-top:18px; font-size:16px }
+    .good{ color:var(--good) } .bad{ color:var(--bad) }
+    .result-table{
+      width:100%; border-collapse:collapse; margin-top:18px; font-size:14px;
+      border:1px solid var(--border); border-radius:12px; overflow:hidden;
+    }
+    .result-table th, .result-table td{ border-bottom:1px solid var(--border); padding:10px; text-align:left }
+    .result-table th{ background:var(--accent); color:#fff }
+    .result-table tr:nth-child(even){ background:#151a20 }
+    .correct{ color:var(--good); font-weight:600 }
+    .incorrect{ color:var(--bad); font-weight:600 }
+    #username-input{
+      width:80%; padding:12px; border:1px solid var(--border); border-radius:10px; background:#0b0f14; color:var(--fg);
+    }
+    .meta{
+      display:flex; gap:12px; justify-content:center; align-items:center; flex-wrap:wrap; margin-top:8px; color:var(--muted);
+      font-size:13px;
+    }
+    .pill{
+      border:1px solid var(--border); padding:6px 10px; border-radius:999px; background:#0f141a;
+    }
+    /* Responsive */
+    @media (max-width:600px){
+      .section{ min-width: 100% }
+      #username-input{ width:100% }
+    }
+    /* Confetti Canvas */
+    #confetti-canvas{
+      position:fixed; inset:0; width:100%; height:100%; pointer-events:none; z-index:9999; display:block;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="confetti-canvas"></canvas>
+
+  <!-- Sounds -->
+  <audio id="correct-sound" src="https://cdn.pixabay.com/download/audio/2022/03/10/audio_d2c6f5e1d0.mp3?filename=correct-2-46134.mp3" preload="auto"></audio>
+  <audio id="wrong-sound"   src="https://cdn.pixabay.com/download/audio/2022/03/10/audio_2d2d1d1a34.mp3?filename=wrong-buzzer-45918.mp3" preload="auto"></audio>
+
+  <!-- Username -->
+  <div id="username-form">
+    <h2>Enter Your Name to Start</h2>
+    <br/>
+    <input type="text" id="username-input" placeholder="Your username" />
+    <br/><br/>
+    <button onclick="submitUsername()">Start</button>
+  </div>
+
+  <!-- Subject Picker -->
+  <div id="main-container" style="display:none;">
+    <h2>📚 Choose a Subject</h2>
+    <div class="section-container">
+      <div class="section">
+        <div class="subject-chip">Core CS</div>
+        <h3>DBMS</h3>
+        <p style="color:var(--muted)">Normalization, Transactions, Indexing</p>
+        <button onclick="chooseLevel('dbms')">Start</button>
+      </div>
+      <div class="section">
+        <div class="subject-chip">Data</div>
+        <h3>SQL</h3>
+        <p style="color:var(--muted)">Queries, Joins, Aggregations</p>
+        <button onclick="chooseLevel('sql')">Start</button>
+      </div>
+      <div class="section">
+        <div class="subject-chip">Programming</div>
+        <h3>Python</h3>
+        <p style="color:var(--muted)">Syntax, Stdlib, OOP, Idioms</p>
+        <button onclick="chooseLevel('python')">Start</button>
+      </div>
+      <div class="section">
+        <div class="subject-chip">Programming</div>
+        <h3>Java</h3>
+        <p style="color:var(--muted)">OOP, Collections, JVM Basics</p>
+        <button onclick="chooseLevel('java')">Start</button>
+      </div>
+      <div class="section">
+        <div class="subject-chip">Algorithms</div>
+        <h3>DSA</h3>
+        <p style="color:var(--muted)">Arrays, Trees, Graphs, DP</p>
+        <button onclick="chooseLevel('dsa')">Start</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Level Picker -->
+  <div id="level-container" style="display:none;" class="quiz-section">
+    <h2>Choose Difficulty</h2>
+    <div class="section-container">
+      <div class="section"><h3>Easy</h3><p class="muted">Basics & definitions</p><button onclick="startQuiz(selectedSubject,'easy')">Start</button></div>
+      <div class="section"><h3>Moderate</h3><p class="muted">Concepts & scenarios</p><button onclick="startQuiz(selectedSubject,'moderate')">Start</button></div>
+      <div class="section"><h3>Hard</h3><p class="muted">Edge cases & depth</p><button onclick="startQuiz(selectedSubject,'hard')">Start</button></div>
+    </div>
+  </div>
+
+  <!-- Quiz -->
+  <div id="quiz-container" style="display:none;">
+    <h2 id="question"></h2>
+    <div id="options" class="options"></div>
+    <div class="meta">
+      <span id="timer" class="pill">Time: --</span>
+      <span id="score" class="pill">Score: 0</span>
+      <span id="progress" class="pill">Q: 1/--</span>
+    </div>
+    <div style="text-align:center;margin-top:14px;">
+      <button onclick="submitAnswer()">Submit</button>
+      <button onclick="skipQuestion()" style="background:#7d8590;">Skip</button>
+    </div>
+    <div id="result"></div>
+  </div>
+
+<script>
+  // ========= State =========
+  let selectedSubject = '', selectedQuiz = [], current = 0, score = 0, timer, timeLeft = 180, userAnswers = [], username = '';
+
+  // ========= Question Bank (5 subjects × 3 levels × ~6 Qs) =========
+  const quizzes = {
+    dbms: {
+      easy: [
+        {type:"single", question:"DBMS stands for?", options:["Database Management System","Data Block Memory Storage","Digital Base Manage Suite","Data Binary Management Service"], answer:"Database Management System"},
+        {type:"single", question:"Which key uniquely identifies a record?", options:["Foreign key","Primary key","Composite key","Candidate key"], answer:"Primary key"},
+        {type:"fill",   question:"In an ER diagram, rectangles represent ____.", answer:"entities"},
+        {type:"single", question:"Which is NOT a DBMS?", options:["MySQL","MongoDB","PostgreSQL","HTML"], answer:"HTML"},
+        {type:"multiple",question:"Pick valid relational constraints:", options:["Entity integrity","Referential integrity","Domain constraint","Packet integrity"], answer:["Entity integrity","Referential integrity","Domain constraint"]},
+        {type:"fill",   question:"A table is also called a ____.", answer:"relation"}
+      ],
+      moderate: [
+        {type:"single", question:"Which normal form removes partial dependency?", options:["1NF","2NF","3NF","BCNF"], answer:"2NF"},
+        {type:"single", question:"ACID: 'A' stands for?", options:["Atomicity","Accuracy","Association","Aggregation"], answer:"Atomicity"},
+        {type:"multiple",question:"Which are non-procedural query languages?", options:["SQL","Relational Algebra","Relational Calculus","C"], answer:["SQL","Relational Calculus"]},
+        {type:"fill",   question:"A view is a ____ table.", answer:"virtual"},
+        {type:"single", question:"Index improves primarily ____.", options:["Security","Data integrity","Query performance","Storage"], answer:"Query performance"},
+        {type:"fill",   question:"Denormalization may reduce number of ____.", answer:"joins"}
+      ],
+      hard: [
+        {type:"single", question:"Boyce–Codd Normal Form (BCNF) is stricter than ____.", options:["1NF","2NF","3NF","4NF"], answer:"3NF"},
+        {type:"multiple",question:"Choose valid concurrency control techniques:", options:["Two-phase locking","Timestamp ordering","Deadlock injection","Multiversion CC"], answer:["Two-phase locking","Timestamp ordering","Multiversion CC"]},
+        {type:"fill",   question:"In ARIES recovery, the REDO phase is followed by ____.", answer:"undo"},
+        {type:"single", question:"Clustered index stores:", options:["Only pointers","Data rows ordered by key","Hashed buckets","Unordered heap"], answer:"Data rows ordered by key"},
+        {type:"single", question:"Which isolation level can suffer from phantom reads but prevents dirty reads?", options:["Read Uncommitted","Read Committed","Repeatable Read","Serializable"], answer:"Repeatable Read"},
+        {type:"fill",   question:"A relation R with overlapping candidate keys likely violates ____.", answer:"bcnf"}
+      ]
+    },
+
+    sql: {
+      easy: [
+        {type:"single", question:"Which keyword fetches data?", options:["SELECT","INSERT","UPDATE","DELETE"], answer:"SELECT"},
+        {type:"fill",   question:"To remove duplicate rows use ____.", answer:"distinct"},
+        {type:"single", question:"Which clause filters rows before grouping?", options:["HAVING","WHERE","ORDER BY","GROUP BY"], answer:"WHERE"},
+        {type:"single", question:"Which operator matches patterns?", options:["BETWEEN","LIKE","IN","ALL"], answer:"LIKE"},
+        {type:"multiple",question:"Pick DDL commands:", options:["CREATE","ALTER","SELECT","DROP"], answer:["CREATE","ALTER","DROP"]},
+        {type:"fill",   question:"The command to rename a table is ____ TABLE.", answer:"alter"}
+      ],
+      moderate: [
+        {type:"single", question:"INNER JOIN returns:", options:["All rows","Matching rows across tables","Unmatched left rows","Unmatched right rows"], answer:"Matching rows across tables"},
+        {type:"fill",   question:"To sort result descending use ORDER BY col ____.", answer:"desc"},
+        {type:"multiple",question:"Aggregate functions:", options:["SUM","AVG","COUNT","WHERE"], answer:["SUM","AVG","COUNT"]},
+        {type:"single", question:"Which clause filters groups?", options:["WHERE","HAVING","ORDER BY","LIMIT"], answer:"HAVING"},
+        {type:"single", question:"To limit rows in MySQL use:", options:["TOP","ROWNUM","LIMIT","FETCH"], answer:"LIMIT"},
+        {type:"fill",   question:"A subquery inside SELECT list is called a ____ subquery.", answer:"scalar"}
+      ],
+      hard: [
+        {type:"single", question:"Correlated subquery is executed:", options:["Once overall","Per outer row","Never","Only if index exists"], answer:"Per outer row"},
+        {type:"multiple",question:"Window function examples:", options:["ROW_NUMBER()","RANK()","DENSE_RANK()","GROUP_CONCAT"], answer:["ROW_NUMBER()","RANK()","DENSE_RANK()"]},
+        {type:"fill",   question:"To change execution plan hints are placed in ____ comments (Oracle).", answer:"optimizer"},
+        {type:"single", question:"Which join can produce null-extended rows?", options:["INNER","CROSS","LEFT OUTER","NATURAL"], answer:"LEFT OUTER"},
+        {type:"single", question:"NOT EXISTS differs from NOT IN when column contains:", options:["Zeros","Negatives","NULLs","Duplicates"], answer:"NULLs"},
+        {type:"fill",   question:"Creating an index improves SELECT but may slow ____ and ____.", answer:"insert, update"}
+      ]
+    },
+
+    python: {
+      easy: [
+        {type:"single", question:"Which creates a list?", options:["{}","[]","()","<>"], answer:"[]"},
+        {type:"fill",   question:"The keyword to define a function is ____.", answer:"def"},
+        {type:"single", question:"Which is immutable?", options:["list","dict","set","tuple"], answer:"tuple"},
+        {type:"single", question:"PEP 8 refers to:", options:["Packaging","Style Guide","Profiler","Interpreter"], answer:"Style Guide"},
+        {type:"multiple",question:"Falsy values in Python:", options:["0","''","[]","1"], answer:["0","''","[]"]},
+        {type:"fill",   question:"List comprehension: [x for x in range(3)] returns ____ elements.", answer:"3"}
+      ],
+      moderate: [
+        {type:"single", question:"Which statement handles exceptions?", options:["catch","except","handle","try/except"], answer:"try/except"},
+        {type:"fill",   question:"Dunder method for object string is ____.", answer:"__str__"},
+        {type:"multiple",question:"Built-in data structures:", options:["list","tuple","map","set"], answer:["list","tuple","set"]},
+        {type:"single", question:"Which opens a file safely?", options:["open(...)", "with open(...) as f", "file()", "readfile()"], answer:"with open(...) as f"},
+        {type:"single", question:"Generator is created using:", options:["[]","{}","() with yield","lambda"], answer:"() with yield"},
+        {type:"fill",   question:"Virtual environments are created with ____ module (std).", answer:"venv"}
+      ],
+      hard: [
+        {type:"single", question:"GIL primarily affects:", options:["CPU-bound threads","IO-bound threads","Multiprocessing","Asyncio"], answer:"CPU-bound threads"},
+        {type:"multiple",question:"Descriptors implement:", options:["__get__","__set__","__delete__","__slots__"], answer:["__get__","__set__","__delete__"]},
+        {type:"fill",   question:"Dataclasses decorator is @____.", answer:"dataclass"},
+        {type:"single", question:"Which has O(1) average lookup?", options:["list","dict","tuple","deque"], answer:"dict"},
+        {type:"single", question:"Context manager protocol methods:", options:["__enter__/__exit__","__init__/__del__","__aenter__/__aexit__","__iter__/__next__"], answer:"__enter__/__exit__"},
+        {type:"fill",   question:"Async functions are defined with ____ keyword.", answer:"async"}
+      ]
+    },
+
+    java: {
+      easy: [
+        {type:"single", question:"Java is:", options:["Compiled","Interpreted","Both (bytecode + JIT)","Neither"], answer:"Both (bytecode + JIT)"},
+        {type:"fill",   question:"JVM stands for ____.", answer:"java virtual machine"},
+        {type:"single", question:"Which is NOT a primitive?", options:["int","boolean","String","double"], answer:"String"},
+        {type:"single", question:"Entry point method signature:", options:["public void start()","public static void main(String[] args)","main()","start()"], answer:"public static void main(String[] args)"},
+        {type:"multiple",question:"OOP pillars:", options:["Encapsulation","Abstraction","Polymorphism","Virtualization"], answer:["Encapsulation","Abstraction","Polymorphism"]},
+        {type:"fill",   question:"Collections framework root interface for sequences is ____.", answer:"list"}
+      ],
+      moderate: [
+        {type:"single", question:"HashMap allows:", options:["Null key and null values","No nulls","Only null keys","Only null values"], answer:"Null key and null values"},
+        {type:"fill",   question:"Checked exceptions must be handled or declared using ____.", answer:"throws"},
+        {type:"multiple",question:"Interfaces can contain:", options:["abstract methods","default methods","static methods","instance fields"], answer:["abstract methods","default methods","static methods"]},
+        {type:"single", question:"StringBuilder vs StringBuffer:", options:["Buffer is faster","Builder is synchronized","Builder is faster (unsynchronized)","They are same"], answer:"Builder is faster (unsynchronized)"},
+        {type:"single", question:"Which collection maintains insertion order?", options:["HashSet","LinkedHashMap","TreeSet","PriorityQueue"], answer:"LinkedHashMap"},
+        {type:"fill",   question:"Automatic resource management uses try-____-resources.", answer:"with"}
+      ],
+      hard: [
+        {type:"single", question:"volatile ensures:", options:["Atomicity","Visibility & ordering (happens-before)","Mutual exclusion","Deadlock prevention"], answer:"Visibility & ordering (happens-before)"},
+        {type:"multiple",question:"Valid functional interfaces:", options:["Supplier","Consumer","Runnable","Iterable"], answer:["Supplier","Consumer","Runnable"]},
+        {type:"fill",   question:"The hotspot compiler that optimizes bytecode at runtime is a ____ compiler.", answer:"jit"},
+        {type:"single", question:"Which stream is unbounded & lazy?", options:["Collections","Arrays","Streams API","Optionals"], answer:"Streams API"},
+        {type:"single", question:"TreeMap is ordered by:", options:["Hash code","Natural order/Comparator","Insertion order","Random"], answer:"Natural order/Comparator"},
+        {type:"fill",   question:"To prevent inheritance mark class as ____.", answer:"final"}
+      ]
+    },
+
+    dsa: {
+      easy: [
+        {type:"single", question:"Which DS works on FIFO?", options:["Stack","Queue","Tree","Graph"], answer:"Queue"},
+        {type:"fill",   question:"Binary search works on ____ arrays.", answer:"sorted"},
+        {type:"single", question:"In-order traversal of BST gives ____ order.", options:["Random","Ascending","Descending","Level"], answer:"Ascending"},
+        {type:"single", question:"Which DS uses LIFO?", options:["Queue","Deque","Stack","Heap"], answer:"Stack"},
+        {type:"multiple",question:"Stable sorting algorithms:", options:["Merge Sort","Insertion Sort","Quick Sort (naive)","Counting Sort"], answer:["Merge Sort","Insertion Sort","Counting Sort"]},
+        {type:"fill",   question:"Time complexity of linear search is O(____).", answer:"n"}
+      ],
+      moderate: [
+        {type:"single", question:"Heap used in Dijkstra by default for min extraction:", options:["Max-heap","Min-heap","Binary search tree","Queue"], answer:"Min-heap"},
+        {type:"fill",   question:"A tree with n nodes has exactly ____ edges.", answer:"n-1"},
+        {type:"multiple",question:"Graph representations:", options:["Adjacency matrix","Incidence list","Adjacency list","Edge list"], answer:["Adjacency matrix","Adjacency list","Edge list"]},
+        {type:"single", question:"Which finds MST?", options:["Dijkstra","Bellman-Ford","Kruskal","Floyd–Warshall"], answer:"Kruskal"},
+        {type:"single", question:"Amortized O(1) array push is for:", options:["Dynamic array","Static array","Linked list","Deque"], answer:"Dynamic array"},
+        {type:"fill",   question:"Prefix expression is also called ____ notation.", answer:"polish"}
+      ],
+      hard: [
+        {type:"single", question:"Tarjan’s algorithm computes:", options:["MST","Strongly Connected Components","Shortest paths","Topological order"], answer:"Strongly Connected Components"},
+        {type:"multiple",question:"DP optimization techniques:", options:["Space compression","Divide & Conquer on DP","Convex Hull Trick","Union-Find"], answer:["Space compression","Divide & Conquer on DP","Convex Hull Trick"]},
+        {type:"fill",   question:"In a Fenwick Tree, parent of i is i + (i & -i). The prefix op is ____.", answer:"sum"},
+        {type:"single", question:"Average-case complexity of QuickSort:", options:["O(n)","O(n log n)","O(n^2)","O(log n)"], answer:"O(n log n)"},
+        {type:"single", question:"Topological sort applies to:", options:["Trees","Undirected graphs","DAGs","All graphs"], answer:"DAGs"},
+        {type:"fill",   question:"KMP uses the ____ function (also called LPS).", answer:"prefix"}
+      ]
+    }
+  };
+
+  // ========= Flow =========
+  function submitUsername(){
+    const input = document.getElementById('username-input');
+    if(!input.value.trim()){ alert('Please enter a name'); return; }
+    username = input.value.trim();
+    document.getElementById('username-form').style.display = 'none';
+    document.getElementById('main-container').style.display = 'block';
+  }
+
+  function chooseLevel(subject){
+    selectedSubject = subject;
+    document.getElementById('main-container').style.display='none';
+    document.getElementById('level-container').style.display='block';
+  }
+
+  function startQuiz(subject, level){
+    selectedQuiz = quizzes[subject][level];
+    current = 0; score = 0; userAnswers = []; timeLeft = 180;
+    document.getElementById('level-container').style.display='none';
+    document.getElementById('quiz-container').style.display='block';
+    updateMeta();
+    startTimer();
+    loadQuestion();
+  }
+
+  function updateMeta(){
+    document.getElementById('score').innerText = `Score: ${score}`;
+    document.getElementById('progress').innerText = `Q: ${Math.min(current+1, selectedQuiz.length)}/${selectedQuiz.length}`;
+  }
+
+  function startTimer(){
+    clearInterval(timer);
+    timer = setInterval(()=>{
+      document.getElementById('timer').innerText = `Time: ${timeLeft}s`;
+      timeLeft--;
+      if(timeLeft < 0){
+        clearInterval(timer);
+        endQuiz("⏰ Time's Up!");
+      }
+    }, 1000);
+  }
+
+  function loadQuestion(){
+    if(current >= selectedQuiz.length){
+      endQuiz("✅ Quiz Completed!");
+      return;
+    }
+    const q = selectedQuiz[current];
+    document.getElementById('result').innerHTML = '';
+    document.getElementById('question').innerText = q.question;
+    const optionsDiv = document.getElementById('options');
+    optionsDiv.innerHTML = '';
+
+    if(q.type === 'single'){
+      q.options.forEach(o=>{
+        optionsDiv.innerHTML += `<label><input type="radio" name="opt" value="${escapeHtml(o)}"> ${escapeHtml(o)}</label>`;
+      });
+    } else if(q.type === 'multiple'){
+      q.options.forEach(o=>{
+        optionsDiv.innerHTML += `<label><input type="checkbox" name="opt" value="${escapeHtml(o)}"> ${escapeHtml(o)}</label>`;
+      });
+    } else if(q.type === 'fill'){
+      optionsDiv.innerHTML = `<input id="fillInput" placeholder="Type your answer" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);background:#0b0f14;color:var(--fg);">`;
+    }
+    updateMeta();
+  }
+
+  function submitAnswer(){
+    const q = selectedQuiz[current];
+    let ans, correct = false;
+
+    if(q.type === 'single'){
+      const sel = document.querySelector('input[name="opt"]:checked');
+      if(!sel){ alert('Pick an option'); return; }
+      ans = sel.value;
+      correct = normalize(ans) === normalize(q.answer);
+    }else if(q.type === 'multiple'){
+      const sel = [...document.querySelectorAll('input[name="opt"]:checked')].map(x=>x.value);
+      if(sel.length===0){ alert('Pick at least one'); return; }
+      ans = sel;
+      correct = arraysEqual([...sel].sort().map(normalize), [...q.answer].sort().map(normalize));
+    }else{
+      ans = (document.getElementById('fillInput').value || '').trim();
+      if(!ans){ alert('Enter your answer'); return; }
+      correct = normalize(ans) === normalize(q.answer);
+    }
+
+    userAnswers.push(ans);
+    if(correct) score++;
+
+    // sounds
+    const good = document.getElementById('correct-sound');
+    const bad  = document.getElementById('wrong-sound');
+    try{
+      (correct ? good : bad).currentTime = 0;
+      (correct ? good : bad).volume = 0.5;
+      (correct ? good : bad).play().catch(()=>{});
+    }catch(_){}
+
+    document.getElementById('score').innerText = `Score: ${score}`;
+    current++;
+    loadQuestion();
+  }
+
+  function skipQuestion(){
+    userAnswers.push('Skipped');
+    current++;
+    loadQuestion();
+  }
+
+  function endQuiz(message){
+    clearInterval(timer);
+    const total = selectedQuiz.length;
+    const pct = ((score/total)*100).toFixed(2);
+    const feedback =
+      pct >= 85 ? "Excellent! You're a quiz master!" :
+      pct >= 50 ? "Good effort! Keep practicing!" :
+                  "Keep going — practice makes perfect!";
+
+    if(pct >= 85){ startConfetti(); }
+
+    // Build result table
+    let html = `
+      <h2>${message}</h2>
+      <p style="text-align:center;">Results for <strong>${escapeHtml(username)}</strong></p>
+      <p style="text-align:center;">Your Score: <strong>${score}</strong> / ${total} • Percentage: <strong>${pct}%</strong></p>
+      <p style="text-align:center;" class="${pct>=50?'good':'bad'}">${feedback}</p>
+      <table class="result-table">
+        <tr>
+          <th>#</th>
+          <th>Question</th>
+          <th>Correct Answer</th>
+          <th>Your Answer</th>
+          <th>Status</th>
+        </tr>
+    `;
+    selectedQuiz.forEach((q, i)=>{
+      const corr = Array.isArray(q.answer) ? q.answer.join(', ') : q.answer;
+      const usrRaw = userAnswers[i];
+      const usr = Array.isArray(usrRaw) ? usrRaw.join(', ') : (usrRaw ?? 'No Answer');
+      const isC = q.type === 'multiple'
+        ? arraysEqual((usrRaw||[]).slice().sort().map(normalize), q.answer.slice().sort().map(normalize))
+        : normalize(String(usr)) === normalize(String(corr));
+      html += `
+        <tr>
+          <td>${i+1}</td>
+          <td>${escapeHtml(q.question)}</td>
+          <td>${escapeHtml(corr)}</td>
+          <td>${escapeHtml(usr)}</td>
+          <td class="${isC ? 'correct':'incorrect'}">${isC ? 'Correct':'Incorrect'}</td>
+        </tr>
+      `;
+    });
+    html += `</table>
+      <div style="text-align:center;margin-top:16px;">
+        <button onclick="location.reload()">Restart</button>
+        <button onclick="returnToSubjects()" style="background:#7d8590;">Subjects</button>
+      </div>
+    `;
+    document.getElementById('quiz-container').innerHTML = html;
+  }
+
+  function returnToSubjects(){
+    document.getElementById('quiz-container').style.display='none';
+    document.getElementById('main-container').style.display='block';
+  }
+
+  // ========= Helpers =========
+  function arraysEqual(a, b){ return JSON.stringify(a) === JSON.stringify(b); }
+  function normalize(s){ return String(s).trim().toLowerCase(); }
+  function escapeHtml(str){
+    return String(str).replace(/[&<>"']/g, s=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[s]));
+  }
+
+  // ========= Confetti =========
+  function startConfetti(){
+    const canvas = document.getElementById('confetti-canvas');
+    const ctx = canvas.getContext('2d');
+    const resize = ()=>{ canvas.width = innerWidth; canvas.height = innerHeight; };
+    resize(); addEventListener('resize', resize);
+
+    const confetti = Array.from({length: 500}).map(()=>({
+      x: Math.random()*canvas.width,
+      y: Math.random()*-canvas.height,
+      r: Math.random()*4+2,
+      s: Math.random()*2+1,
+      a: Math.random()*Math.PI*2,
+      h: Math.floor(Math.random()*360)
+    }));
+
+    const start = performance.now(); const dur = 5000;
+    (function draw(t){
+      const elapsed = t - start;
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      confetti.forEach(p=>{
+        p.y += p.s;
+        p.x += Math.sin(p.a+=0.03)*0.8;
+        if(p.y > canvas.height) { p.y = -10; p.x = Math.random()*canvas.width; }
+        ctx.beginPath(); ctx.fillStyle = `hsl(${p.h},100%,60%)`; ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+      });
+      if(elapsed < dur) requestAnimationFrame(draw); else ctx.clearRect(0,0,canvas.width,canvas.height);
+    })(start);
+  }
+</script>
+</body>
+</html>
